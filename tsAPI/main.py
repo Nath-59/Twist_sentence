@@ -50,6 +50,10 @@ def update_table(table, values, condition):
     conn.commit()
     cur.close()   
 
+#def getSizeTable(table):
+    
+
+
 conn = sqlite3.connect('dataBase.db')
 
 app = FastAPI()
@@ -67,5 +71,11 @@ async def get_citations():
 @app.get("/citation/{id}")
 async def get_citation(id: int):
     citations = select("citations", "*", f"id = {id}")
+    citations_cleaned = [{'id': row[0], 'citation': row[1].replace('&', ' ')} for row in citations]
+    return {'citations':citations_cleaned}, 200
+
+@app.get("/ranCitation/")
+async def get_random_citation():
+    citations = select("citations", "*")
     citations_cleaned = [{'id': row[0], 'citation': row[1].replace('&', ' ')} for row in citations]
     return {'citations':citations_cleaned}, 200
