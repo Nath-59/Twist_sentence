@@ -1,5 +1,6 @@
 #uvicorn main:app --reload
-
+from random import seed
+from random import randint
 from fastapi import FastAPI
 import sqlite3
     
@@ -13,7 +14,6 @@ def createTable(table, colonnes):
         cur.execute(f"CREATE TABLE {table} ({colonnes_str})")
     conn.commit()
     cur.close()
-
 
 #select("toto", ["col1", "col2"])
 def select(table, colonnes, clause=None):
@@ -50,9 +50,10 @@ def update_table(table, values, condition):
     conn.commit()
     cur.close()   
 
-#def getSizeTable(table):
-    
-
+def getSizeTable(table):
+    cur = conn.cursor()
+    return int(cur.execute(f"SELECT COUNT(*) FROM '{table}'").fetchone()[0])
+    #return len(select(table, "*"))
 
 conn = sqlite3.connect('dataBase.db')
 
@@ -74,8 +75,20 @@ async def get_citation(id: int):
     citations_cleaned = [{'id': row[0], 'citation': row[1].replace('&', ' ')} for row in citations]
     return {'citations':citations_cleaned}, 200
 
-@app.get("/ranCitation/")
+@app.get("/ranCitation")
 async def get_random_citation():
     citations = select("citations", "*")
-    citations_cleaned = [{'id': row[0], 'citation': row[1].replace('&', ' ')} for row in citations]
-    return {'citations':citations_cleaned}, 200
+
+    ran1 = randint(0,getSizeTable("citations")-1)
+    ran2 = randint(0,getSizeTable("citations")-1)
+    
+    while ran2 == ran1:
+        ran2 = randint(0,getSizeTable("citations")-1)
+
+    citaDebut = citations[ran1][1]
+    citaFin = citations[ran2][1]
+    
+    result = citaDebut.split('&')[0] + " " +  citaFin.split('&')[1]
+
+    return {'citations':result}, 200
+
