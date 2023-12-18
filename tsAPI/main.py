@@ -1,9 +1,12 @@
 #uvicorn main:app --reload
-from random import seed
-from random import randint
-from fastapi import FastAPI
+from random import seed, randint
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 import sqlite3
     
+class CitationCreate(BaseModel):
+    citation: str
+
 #createTable("toto", ["col1 INT", "col2 TEXT"])
 def createTable(table, colonnes):
     cur = conn.cursor()
@@ -55,13 +58,21 @@ def getSizeTable(table):
     return int(cur.execute(f"SELECT COUNT(*) FROM '{table}'").fetchone()[0])
     #return len(select(table, "*"))
 
+def delete_from_table(table, condition):
+    try:
+        condition_clause = " AND ".join([f"{key} = '{value}'" for key, value in condition.items()])
+        query = f"DELETE FROM {table} WHERE {condition_clause}"
+
+        cur = conn.cursor()
+        cur.execute(query)
+        conn.commit()
+        cur.close()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 conn = sqlite3.connect('dataBase.db')
 
 app = FastAPI()
-
-createTable("citations", ["id INT", "citation TEXT"])
-#insertIntoTable("citations", {"id": 2, "citation": "Couper la poire en deux"})
-update_table("citations", {"citation": "Couper la poire&en deux"}, {"id": 2})
 
 @app.get("/citations")
 async def get_citations():
@@ -92,3 +103,24 @@ async def get_random_citation():
 
     return {'citations':result}, 200
 
+@app.post("/addCitation")
+async def add_citation(citation_data: CitationCreate):
+    try: 
+        nouvelle_citation = citation_data.citation
+        insertIntoTable("citations", {"citation": nouvelle_citation})
+        return {"message": "Citation ajoutée avec succès"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.delete("/deleteCitation")
+async def del_citation(citation_id: int):
+    try:
+        existing_citation = select("citations", ["id"], f"id = {citation_id}")
+        if not existing_citation:
+            raise HTTPException(status_code=404, detail=f"Citation avec l'ID {citation_id} non trouvée")
+
+        delete_from_table("citations", {"id": citation_id})
+
+        return {"message": f"Citation avec l'ID {citation_id} supprimée avec succès"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
